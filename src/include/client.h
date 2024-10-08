@@ -1,7 +1,7 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#pragma GCC optimize(3)
+// #pragma GCC optimize(3)
 
 #include <iostream>
 #include <utility>
@@ -70,6 +70,7 @@ std::vector<std::vector<int>> copy (std::vector<std::vector<int>> &map) {
 
 bool check(std::vector<std::vector<int>> &map, int r, int c);
 bool check_need(int r, int c);
+bool inference(std::vector<std::vector<int>> & map);
 
 bool assume (std::vector<std::vector<int>> &map, int r, int c, int rec, int type, std::queue<assume_st> * bfs_queue) {
   map[r][c] = type;
@@ -139,6 +140,11 @@ bool assume (std::vector<std::vector<int>> &map, int r, int c, int rec, int type
     }
   }
 
+  auto temp = copy(map);
+  if (!inference(temp)){
+    return false;
+  }
+
   if (rec > 1){
     if (check_need(r-1, c-1)) {
       bfs_queue->push(assume_st{r-1, c-1, rec-1});
@@ -178,6 +184,128 @@ bool assume (std::vector<std::vector<int>> &map, int r, int c, int rec, int type
   
   map[r][c] = -4;
   return true;
+}
+
+bool inference(std::vector<std::vector<int>> & map){
+  bool fresh;
+  while (true){
+    fresh = false;
+    for (int r=0; r<rows; r++) {
+      for (int c=0; c< columns; c++) {
+        if (map[r][c]<0){
+          continue;
+        }
+        int count = 0, marked_count = 0, total = 0;
+        if (r > 0 && c > 0) {
+          if (map[r-1][c-1] == -3) marked_count++;
+          else if (map[r-1][c-1] == -4) count++;
+        }
+        if (r > 0) {
+          if (map[r-1][c] == -3) marked_count++;
+          else if (map[r-1][c] == -4) count++;
+        }
+        if (r > 0 && c < columns-1) {
+          if (map[r-1][c+1] == -3) marked_count++;
+          else if (map[r-1][c+1] == -4) count++;
+        }
+        if (c > 0) {
+          if (map[r][c-1] == -3) marked_count++;
+          else if (map[r][c-1] == -4) count++;
+        }
+        if (c < columns-1) {
+          if (map[r][c+1] == -3) marked_count++;
+          else if (map[r][c+1] == -4) count++;
+        }
+        if (r < rows-1 && c > 0) {
+          if (map[r+1][c-1] == -3) marked_count++;
+          else if (map[r+1][c-1] == -4) count++;
+        }
+        if (r < rows-1) {
+          if (map[r+1][c] == -3) marked_count++;
+          else if (map[r+1][c] == -4) count++;
+        }
+        if (r < rows-1 && c < columns-1) {
+          if (map[r+1][c+1] == -3) marked_count++;
+          else if (map[r+1][c+1] == -4) count++;
+        }
+
+        if (map[r][c] < marked_count) {
+          int x = 1;
+          return false;
+        }
+        if (count + marked_count < map[r][c]) {
+          int x = 1;
+          return false;
+        }
+
+        if (count > 0 && count == map[r][c] - marked_count) {
+          if (r > 0 && c > 0) {
+            if (map[r-1][c-1] == -4) {
+              map[r-1][c-1] = -3;
+            }
+          }
+          if (r > 0) {
+            if (map[r-1][c] == -4) {
+              map[r-1][c] = -3;
+            }
+          }
+          if (r > 0 && c < columns-1) {
+            if (map[r-1][c+1] == -4) {
+              map[r-1][r+1] = -3;
+            }
+          }
+          if (c > 0) {
+            map[r][c-1] = -3;
+          }
+          if (c < columns-1) {
+            map[r][c+1] = -3;
+          }
+          if (r < rows-1 && c > 0) {
+            map[r+1][c-1] = -3;
+          }
+          if (r < rows-1) {
+            map[r+1][c] = -3;
+          }
+          if (r < rows-1 && c < columns-1) {
+            map[r+1][c+1] = -3;
+          }
+          fresh = true;
+        }
+        if (marked_count==map[r][c]&&count>0) {
+          if (r > 0 && c > 0) {
+            if (map[r-1][c-1]==-4) map[r-1][c-1]=-1;
+          }
+          if (r > 0) {
+            if (map[r-1][c]==-4) map[r-1][c]=-1;
+          }
+          if (r > 0 && c < columns-1) {
+            if (map[r-1][c+1]==-4) map[r-1][c+1]=-1;
+          }
+          if (c > 0) {
+            if (map[r][c-1]==-4) map[r][c-1]=-1;
+          }
+          if (c < columns-1) {
+            if (map[r][c+1]==-4) map[r][c+1]=-1;
+          }
+          if (r < rows-1 && c > 0) {
+            if (map[r+1][c-1]==-4) map[r+1][c-1]=-1;
+          }
+          if (r < rows-1) {
+            if (map[r+1][c]==-4) map[r+1][c]=-1;
+          }
+          if (r < rows-1 && c < columns-1) {
+            if (map[r+1][c+1]==-4) map[r+1][c+1]=-1;
+          }
+          fresh = true;
+        }
+      }
+    }
+
+    if (fresh ==false) {
+      int x = 1;
+      return true;
+    }
+  }
 }
 
 bool check_need (int r, int c) {
@@ -455,6 +583,7 @@ void Decide() {
           return;
         }
         visit.push(visit_info({r, c, count, marked_count, total}));
+        std::cout<<"";
       }
     }
   }
@@ -473,14 +602,14 @@ void Decide() {
   {
     width = 24;
     depth = 4;
-  }
-  else if (duration * 2 > time_limit) {
-    width = 32;
-    depth = 5;
   }*/
+  else if (duration * 2 > time_limit) {
+    width = 50;
+    depth = 5;
+  }
   else {
-    width = 1000;
-    depth = 6;
+    width = 1024;
+    depth = 8;
   }
 
   int size = visit.size();
@@ -516,7 +645,7 @@ void Decide() {
     }
   }
   
-  if (!visit.empty()) {
+  /*if (!visit.empty()) {
     root = visit.top();
     if (remaining_mines > remaining_blocks/2) {
       Execute(root.row, root.column, 1);
@@ -537,7 +666,7 @@ void Decide() {
       Execute(root.row, root.column, 0);
       return;
     }
-  }
+  }*/
 
   Execute(0, 0, 2);
   return;
