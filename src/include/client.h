@@ -38,6 +38,13 @@ struct operation
   int type;
 };
 
+struct assume_st
+{
+  int row;
+  int column;
+  int rec;
+};
+
 
 
 //Global variables
@@ -53,7 +60,6 @@ decltype(std::chrono::high_resolution_clock::now()) start_time;
 bool first = true;
 
 
-
 std::vector<std::vector<int>> copy (std::vector<std::vector<int>> &map) {
   std::vector<std::vector<int>> new_map(map.size(), std::vector<int>(map[0].size()));
   for (int r=0; r<map.size(); r++) {
@@ -65,9 +71,14 @@ std::vector<std::vector<int>> copy (std::vector<std::vector<int>> &map) {
 bool check(std::vector<std::vector<int>> &map, int r, int c);
 bool check_need(int r, int c);
 
-bool assume (std::vector<std::vector<int>> &map, int r, int c, int type, int rec) {
-  if (rec == 0) return true;
+bool assume (std::vector<std::vector<int>> &map, int type, std::queue<assume_st> * bfs_queue) {
+  assume_st cela = bfs_queue->front();
+  bfs_queue->pop();
+  int& r = cela.row;
+  int& c = cela.column;
+  int& rec = cela.rec;
   map[r][c] = type;
+
   if (r > 0 && c > 0) {
     if (cli_game_map[r-1][c-1] >= 0) {
       if (!check(map, r-1, c-1)) {
@@ -133,71 +144,41 @@ bool assume (std::vector<std::vector<int>> &map, int r, int c, int type, int rec
     }
   }
 
-  if (check_need(r-1, c-1)) {
-    if (!assume(map, r-1, c-1, -3, rec-1)) {
-      if (!assume(map, r-1, c-1, -1, rec-1)) {
-        map[r][c] = -4;
-        return false;
-      }
+  if (rec > 1){
+    if (check_need(r-1, c-1)) {
+      bfs_queue->push(assume_st{r-1, c-1, rec-1});
     }
-  }
-  if (check_need(r-1, c)) {
-    if (!assume(map, r-1, c, -3, rec-1)) {
-      if (!assume(map, r-1, c, -1, rec-1)) {
-        map[r][c] = -4;
-        return false;
-      }
+    if (check_need(r-1, c)) {
+      bfs_queue->push(assume_st{r-1, c, rec-1});
     }
-  }
-  if (check_need(r-1, c+1)) {
-    if (!assume(map, r-1, c+1, -3, rec-1)) {
-      if (!assume(map, r-1, c+1, -1, rec-1)) {
-        map[r][c] = -4;
-        return false;
-      }
+    if (check_need(r-1, c+1)) {
+      bfs_queue->push(assume_st{r-1, c+1, rec-1});
     }
-  }
-  if (check_need(r, c-1)) {
-    if (!assume(map, r, c-1, -3, rec-1)) {
-      if (!assume(map, r, c-1, -1, rec-1)) {
-        map[r][c] = -4;
-        return false;
-      }
+    if (check_need(r, c-1)) {
+      bfs_queue->push(assume_st{r, c-1, rec-1});
     }
-  }
-  if (check_need(r, c+1)) {
-    if (!assume(map, r, c+1, -3, rec-1)) {
-      if (!assume(map, r, c+1, -1, rec-1)) {
-        map[r][c] = -4;
-        return false;
-      }
+    if (check_need(r, c+1)) {
+      bfs_queue->push(assume_st{r, c+1, rec-1});
     }
-  }
-  if (check_need(r+1, c-1)) {
-    if (!assume(map, r+1, c-1, -3, rec-1)) {
-      if (!assume(map, r+1, c-1, -1, rec-1)) {
-        map[r][c] = -4;
-        return false;
-      }
+    if (check_need(r+1, c-1)) {
+      bfs_queue->push(assume_st{r+1, c-1, rec-1});
     }
-  }
-  if (check_need(r+1, c)) {
-    if (!assume(map, r+1, c, -3, rec-1)) {
-      if (!assume(map, r+1, c, -1, rec-1)) {
-        map[r][c] = -4;
-        return false;
-      }
+    if (check_need(r+1, c)) {
+      bfs_queue->push(assume_st{r+1, c, rec-1});
     }
-  }
-  if (check_need(r+1, c+1)) {
-    if (!assume(map, r+1, c+1, -3, rec-1)) {
-      if (!assume(map, r+1, c+1, -1, rec-1)) {
-        map[r][c] = -4;
-        return false;
-      }
+    if (check_need(r+1, c+1)) {
+      bfs_queue->push(assume_st{r+1, c+1, rec-1});
     }
   }
 
+  if (!bfs_queue->empty()){
+    if (!assume(map, -3, bfs_queue)) {
+      if (!assume(map, -1, bfs_queue)) {
+        return false;
+      }
+    }
+  }
+  
   map[r][c] = -4;
   return true;
 }
@@ -305,8 +286,6 @@ void InitGame() {
   cli_game_map = std::vector<std::vector<int>>(rows, std::vector<int>(columns));
   immediate = std::vector <operation>();
 
-  width = 24;
-  depth = 7;
   if (rows==10&&columns==10) {
     time_limit = 5000;
   }
@@ -502,6 +481,10 @@ void Decide() {
     width = 24;
     depth = 6;
   }
+  else {
+    width = 24;
+    depth = 7;
+  }
 
   for
    (int i=0; i<std::min(size, width); i++) {
@@ -509,21 +492,29 @@ void Decide() {
     visit.pop();
     auto temp_map = copy(cli_game_map);
     if (remaining_mines > remaining_blocks/2) {
-      if (!assume(temp_map, root.row, root.column, -1, depth)) {
+      std::queue<assume_st> bfs_queue;
+      bfs_queue.push(assume_st{root.row, root.column, depth});
+      if (!assume(temp_map, -1, &bfs_queue)) {
         Execute(root.row, root.column, 1);
         return;
       }
-      if (!assume(temp_map, root.row, root.column, -3, depth)) {
+      bfs_queue = std::queue<assume_st>();
+      bfs_queue.push(assume_st{root.row, root.column, depth});
+      if (!assume(temp_map, -3, &bfs_queue)) {
         Execute(root.row, root.column, 0);
         return;
       }
     }
     else {
-      if (!assume(temp_map, root.row, root.column, -3, depth)) {
+      std::queue<assume_st> bfs_queue;
+      bfs_queue.push(assume_st{root.row, root.column, depth});
+      if (!assume(temp_map, -3, &bfs_queue)) {
         Execute(root.row, root.column, 0);
         return;
       }
-      if (!assume(temp_map, root.row, root.column, -1, depth)) {
+      bfs_queue = std::queue<assume_st>();
+      bfs_queue.push(assume_st{root.row, root.column, depth});
+      if (!assume(temp_map, -1, &bfs_queue)) {
         Execute(root.row, root.column, 1);
         return;
       }
