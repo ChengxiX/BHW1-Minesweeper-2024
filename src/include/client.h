@@ -71,12 +71,7 @@ std::vector<std::vector<int>> copy (std::vector<std::vector<int>> &map) {
 bool check(std::vector<std::vector<int>> &map, int r, int c);
 bool check_need(int r, int c);
 
-bool assume (std::vector<std::vector<int>> &map, int type, std::queue<assume_st> * bfs_queue) {
-  assume_st cela = bfs_queue->front();
-  bfs_queue->pop();
-  int& r = cela.row;
-  int& c = cela.column;
-  int& rec = cela.rec;
+bool assume (std::vector<std::vector<int>> &map, int r, int c, int rec, int type, std::queue<assume_st> * bfs_queue) {
   map[r][c] = type;
 
   if (r > 0 && c > 0) {
@@ -172,8 +167,10 @@ bool assume (std::vector<std::vector<int>> &map, int type, std::queue<assume_st>
   }
 
   if (!bfs_queue->empty()){
-    if (!assume(map, -3, bfs_queue)) {
-      if (!assume(map, -1, bfs_queue)) {
+    assume_st cela = bfs_queue->front();
+    bfs_queue->pop();
+    if (!assume(map, cela.row, cela.column, cela.rec, -3, bfs_queue)) {
+      if (!assume(map, cela.row, cela.column, cela.rec, -1, bfs_queue)) {
         return false;
       }
     }
@@ -461,60 +458,58 @@ void Decide() {
       }
     }
   }
-  int size = visit.size();
-  visit_info root;
+
 
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now()-start_time).count();
   if (1.02 * duration > time_limit) {
     width = 0;
   }
   else if (1.05 * duration > time_limit) {
-    width = 6;
+    width = 16;
     depth = 3;
   }
+  /*
   else if (1.4 * duration > time_limit)
   {
-    width = 16;
-    depth = 6;
+    width = 24;
+    depth = 4;
   }
   else if (duration * 2 > time_limit) {
-    width = 24;
+    width = 32;
+    depth = 5;
+  }*/
+  else {
+    width = 1000;
     depth = 6;
   }
-  else {
-    width = 24;
-    depth = 7;
-  }
 
-  for
-   (int i=0; i<std::min(size, width); i++) {
+  int size = visit.size();
+  visit_info root;
+  for (int i=0; i<std::min(size, width); i++) {
     root = visit.top();
     visit.pop();
     auto temp_map = copy(cli_game_map);
     if (remaining_mines > remaining_blocks/2) {
       std::queue<assume_st> bfs_queue;
       bfs_queue.push(assume_st{root.row, root.column, depth});
-      if (!assume(temp_map, -1, &bfs_queue)) {
+      if (!assume(temp_map, root.row, root.column, depth, -1, &bfs_queue)) {
         Execute(root.row, root.column, 1);
         return;
       }
       bfs_queue = std::queue<assume_st>();
-      bfs_queue.push(assume_st{root.row, root.column, depth});
-      if (!assume(temp_map, -3, &bfs_queue)) {
+      if (!assume(temp_map, root.row, root.column, depth, -3, &bfs_queue)) {
         Execute(root.row, root.column, 0);
         return;
       }
     }
     else {
       std::queue<assume_st> bfs_queue;
-      bfs_queue.push(assume_st{root.row, root.column, depth});
-      if (!assume(temp_map, -3, &bfs_queue)) {
+      if (!assume(temp_map, root.row, root.column, depth, -3, &bfs_queue)) {
         Execute(root.row, root.column, 0);
         return;
       }
       bfs_queue = std::queue<assume_st>();
-      bfs_queue.push(assume_st{root.row, root.column, depth});
-      if (!assume(temp_map, -1, &bfs_queue)) {
+      if (!assume(temp_map, root.row, root.column, depth, -1, &bfs_queue)) {
         Execute(root.row, root.column, 1);
         return;
       }
